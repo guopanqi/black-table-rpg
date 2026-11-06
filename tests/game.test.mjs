@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {content} from "../src/data/content.js";
+import {validateContent} from "../src/engine/validate.js";
 import {createGame,inspect,play,endDay,oddsFor,changeClock,actorFree} from "../src/engine/game.js";
 
 test("every probability row is bounded, sums to 100 and increases monotonically",()=>{
@@ -90,4 +91,11 @@ test("authors can add new actions without editing the engine",()=>{
   }}};
   assert.equal(play(s,custom,"a_test",[]).ok,true);
   assert.equal(s.money,45);
+});
+
+test("author content has valid references and catches broken additions",()=>{
+  assert.deepEqual(validateContent(content),[]);
+  const broken={...content,actions:{...content.actions,a_broken:{id:"a_broken",node:"missing",cost:0,suits:["other"],diff:4}}};
+  const errors=validateContent(broken);
+  assert.ok(errors.some(x=>x.includes("a_broken")));
 });
