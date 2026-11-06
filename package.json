@@ -1,0 +1,13 @@
+{
+  "name": "black-table-rpg",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A narrative noir tabletop RPG prototype",
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/main.js && node --check src/ui/board.js && node --check src/engine/game.js && node --check src/data/content.js && npm test"
+  },
+  "engines": {"node": ">=20"}
+}
