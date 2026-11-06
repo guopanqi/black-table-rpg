@@ -1,3 +1,6 @@
+/* Preserve the HTML hidden contract after extracting the original stylesheet. */
+[hidden]:not([hidden="until-found"]){display:none!important}
+
 /* Layout concept: a detective's desk. A full-bleed city map that zooms into districts, places and people; a dossier card docks beside the selected node; a hand of paper cards runs along the bottom. Deliberately dark-only (noir). */
 :root{
   --bg:#0b0c0f; --panel:#14161b; --line:#2a2e37; --fg:#d9d3c1; --dim:#8b887d;
