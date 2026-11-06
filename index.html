@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>雨夜侦探桌 · Black Table RPG</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap"><link rel="stylesheet" href="./src/styles.css"></head><body>
+<div id="app">
+  <header class="top">
+    <div class="brand"><small>Rainy Harbor · <span id="date"></span></small><b>林深失踪案</b></div>
+    <div class="phases" id="phases"></div>
+    <div class="stats"><span id="money"></span><span id="stress"></span></div>
+    <button class="settle" id="settle"></button>
+  </header>
+  <main class="map boot" id="map" data-ph="0">
+    <svg class="wsvg" id="wsvg"><g id="world"><g id="decor"></g><g id="edges"></g></g></svg>
+    <svg class="wsvg lsvg" id="linksvg"></svg>
+    <div id="nodes"></div>
+    <nav class="crumbs" id="crumbs"></nav>
+    <aside class="note" id="note">
+      <b>委托:找到林深</b>
+      <ol>
+        <li>点区域,镜头推进去,再点人物或物件</li>
+        <li>把底部的时间卡拖进行动槽,可叠加多张和物品</li>
+        <li>看概率条,点右上角“结算”落子</li>
+      </ol>
+    </aside>
+    <aside class="goals" id="goals"></aside>
+    <aside class="panel" id="panel" hidden></aside>
+    <div class="toast" id="toast" hidden></div>
+  </main>
+  <footer class="hand" id="hand"></footer>
+</div>
+<div class="veil" id="veil" hidden><div class="sheet" id="sheet"></div></div>
+
+<script type="module" src="./src/main.js"></script></body></html>
