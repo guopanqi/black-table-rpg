@@ -24,6 +24,7 @@ export const clocks = {
       ? [{op:"flag",id:"lin_found"}, {op:"text",t:"你找到了林深。真相在手，你还得决定如何使用它。"}]
       : c.on
   }])),
+  c_widow:{...C0.c_widow,name:"让林太太开口"},
   c_zhuan_pressure:{name:"工头的催促",kind:"r",size:5,v:0,
     res:"满：阿砖签下看不懂的合同",on:[{op:"flag",id:"zhuan_signed"},{op:"text",t:"阿砖在合同上按下指印，甚至没看清上面的字。"}]},
   c_zhuan_protect:{name:"帮阿砖攒船钱",kind:"p",size:4,v:0,
