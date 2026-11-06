@@ -2,6 +2,12 @@
 
 一款黑色电影风格的桌面式都市生活 RPG。玩家用有限行动力和手里的牌，处理工作、事件、人物和麻烦；城市与人物在玩家不介入时仍会向前运行。故事记录的是玩家具体做过的事，而不是抽象的道德阵营数值。
 
+## 在线试玩
+
+**GitHub Pages：** https://guopanqi.github.io/black-table-rpg/
+
+每次推送 `main` 分支时由 `.github/workflows/pages.yml` 完成测试与静态发布。
+
 ## 运行
 
 使用 Node.js 20+，在仓库根目录执行：
