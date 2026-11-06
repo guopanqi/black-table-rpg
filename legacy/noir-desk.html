@@ -1,0 +1,672 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>雨夜侦探桌</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap">
+<style>
+/* Layout concept: a detective's desk. A full-bleed city map that zooms into districts, places and people; a dossier card docks beside the selected node; a hand of paper cards runs along the bottom. Deliberately dark-only (noir). */
+:root{
+  --bg:#0b0c0f; --panel:#14161b; --line:#2a2e37; --fg:#d9d3c1; --dim:#8b887d;
+  --paper:#d4c9a9; --paper-2:#c4b891; --paper-ink:#1b1810; --paper-dim:#6a614c;
+  --lamp:#e2a63b; --blood:#cc4630; --teal:#5fb4a7; --steel:#7890ab;
+  --blk:#14171d; --road:#1d2129; --water:#0e1820;
+  --f-disp:"Noto Serif SC","Songti SC","Noto Serif CJK SC",serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --f-mono:"Courier Prime","Courier New",monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--f-body);padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+#app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;min-width:0}
+
+/* top bar */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px}
+.brand{display:grid;line-height:1.15}
+.brand small{font:11px var(--f-mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.brand b{font:900 17px var(--f-disp);letter-spacing:.04em}
+.phases{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.phases span{padding:4px 12px;font-size:12px;color:var(--dim);border-right:1px solid var(--line)}
+.phases span:last-child{border-right:0}
+.phases .past{opacity:.45;text-decoration:line-through}
+.phases .on{background:var(--lamp);color:#17130a;font-weight:700}
+.stats{display:flex;align-items:center;gap:14px;font:13px var(--f-mono);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.sp{display:inline-flex;gap:3px;vertical-align:middle;margin-left:4px}
+.sp i{width:9px;height:14px;border:1px solid var(--dim);border-radius:1px}
+.sp i.on{background:var(--teal);border-color:var(--teal)}
+.sp i.hi{background:var(--blood);border-color:var(--blood)}
+.warn{color:var(--blood);font-style:normal}
+.settle{margin-left:auto;background:var(--lamp);color:#17130a;border:0;border-radius:3px;padding:8px 16px;font-weight:700;letter-spacing:.04em}
+.settle:disabled{opacity:.4;cursor:default}
+
+/* map */
+.map{position:relative;overflow:hidden;min-height:0;border:1px solid var(--line);border-radius:4px;background:radial-gradient(ellipse at 50% 38%,#181b22 0%,#0e1014 70%)}
+.map::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:4;transition:background .9s;background:rgba(226,166,59,.03)}
+.map[data-ph="1"]::after{background:linear-gradient(180deg,rgba(204,90,40,.12),rgba(60,20,40,.14))}
+.map[data-ph="2"]::after{background:rgba(14,30,70,.3)}
+.map.boot *{transition:none!important}
+.wsvg{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+#world{transform-origin:0 0;transition:transform .7s cubic-bezier(.3,.7,.2,1)}
+.edge{stroke:var(--lamp);stroke-width:1.5;stroke-dasharray:5 5;vector-effect:non-scaling-stroke;fill:none}
+.edge.dim{opacity:.18}.edge.path{opacity:.35}.edge.full{opacity:.7}
+.lsvg path{fill:none;stroke:var(--lamp);stroke-width:1.5;stroke-dasharray:3 4}
+.lsvg circle{fill:var(--lamp)}
+#nodes{position:absolute;inset:0;z-index:2;pointer-events:none}
+
+/* nodes */
+.node{position:absolute;left:0;top:0;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;transition:left .7s cubic-bezier(.3,.7,.2,1),top .7s cubic-bezier(.3,.7,.2,1),opacity .4s}
+.node.dim{opacity:.4}.node.dim:hover{opacity:.85}
+.node.off{opacity:0;pointer-events:none;visibility:hidden;transition:left .7s,top .7s,opacity .3s,visibility 0s .3s}
+.nc{position:relative;display:grid;gap:2px;min-width:96px;max-width:150px;padding:6px 10px 7px;background:var(--paper);color:var(--paper-ink);border-radius:2px;text-align:left;transform:rotate(var(--rot));box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 8px 16px rgba(0,0,0,.55);transition:transform .2s}
+.node:hover .nc{transform:rotate(0) translateY(-2px)}
+.nc .k{font:9.5px var(--f-mono);letter-spacing:.14em;color:var(--paper-dim)}
+.nc .row{display:flex;align-items:center;gap:7px}
+.nc .nm{font:900 15px/1.2 var(--f-disp)}
+.nc .pips{display:flex;gap:4px;margin-top:3px}
+.nc .dl{font:10px/1.3 var(--f-mono);color:var(--lamp)}
+.av{flex:none;width:24px;height:24px;border-radius:50%;background:var(--paper-ink);color:var(--paper);display:grid;place-items:center;font:700 12px var(--f-disp)}
+.t-zone .nc{background:#0f1115;color:var(--paper);outline:1.5px solid var(--paper-dim);outline-offset:-4px;min-width:124px;padding:9px 14px}
+.t-zone .nc .k{color:var(--dim)}.t-zone .nm{font-size:19px;letter-spacing:.08em}
+.t-state .nc{background:rgba(11,12,15,.85);color:var(--fg);border:1.5px dashed var(--lamp);box-shadow:none}
+.t-state .nc .k{color:var(--dim)}
+.t-thing .nc{padding:5px 9px}
+.node.sel .nc{outline:2px solid var(--lamp);outline-offset:3px}
+.node.path .nc{box-shadow:0 0 0 1px var(--lamp),0 8px 16px rgba(0,0,0,.55)}
+.node.gone .nc{filter:grayscale(1);opacity:.55}
+.bub{position:absolute;top:-9px;right:-9px;z-index:2;min-width:28px;text-align:center;background:var(--blood);color:#fff;border-radius:11px;font:700 10px var(--f-mono);padding:2px 6px;box-shadow:0 0 0 2px var(--bg)}
+.bub.hot{animation:pulse 1.2s infinite}
+@keyframes pulse{50%{transform:scale(1.18)}}
+
+/* clock svg */
+.clk{--cbg:var(--paper);--cln:var(--paper-ink);flex:none;display:block}
+.clk .bg{fill:var(--cbg);stroke:var(--cln);stroke-width:1.4}
+.clk .w{fill:transparent}
+.clk.p .w.f{fill:var(--lamp)}
+.clk.r .w.f{fill:var(--blood)}
+.clk .sep{stroke:var(--cln);stroke-width:.8}
+
+/* floating bits on map */
+.crumbs{position:absolute;z-index:5;top:10px;left:12px;right:12px;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;font:12px var(--f-mono);color:var(--dim);pointer-events:none}
+.crumbs>*{pointer-events:auto}
+.crumbs button{background:rgba(11,12,15,.8);border:1px solid var(--line);border-radius:2px;padding:2px 8px}
+.crumbs button:last-child{border-color:var(--lamp);color:var(--lamp)}
+.goals{position:absolute;z-index:5;left:12px;bottom:12px;display:flex;flex-wrap:wrap;gap:8px}
+.goal{display:flex;align-items:center;gap:8px;background:rgba(11,12,15,.88);border:1px solid var(--line);border-radius:3px;padding:5px 10px 5px 6px;text-align:left}
+.goal .clk{--cbg:#1a1d23;--cln:var(--dim)}
+.goal span{display:grid;line-height:1.2}
+.goal small{font:10px var(--f-mono);letter-spacing:.12em;color:var(--dim)}
+.goal b{font-size:12px}.goal em{font:11px var(--f-mono);font-style:normal;color:var(--dim)}
+.note{position:absolute;z-index:5;left:12px;top:46px;max-width:290px;background:var(--paper);color:var(--paper-ink);padding:10px 13px;border-radius:2px;transform:rotate(-1.2deg);box-shadow:0 10px 20px rgba(0,0,0,.5);font-size:12.5px}
+.note b{font:900 14px var(--f-disp)}
+.note ol{margin:6px 0 0;padding-left:18px}
+.toast{position:absolute;z-index:9;left:50%;top:48px;transform:translateX(-50%);background:var(--blood);color:#fff;padding:7px 14px;border-radius:3px;font-size:13px;max-width:90%;text-align:center}
+
+/* dossier panel */
+.panel{position:absolute;z-index:6;background:var(--paper);color:var(--paper-ink);border-radius:3px;padding:14px 16px 16px;overflow:auto;box-shadow:0 14px 34px rgba(0,0,0,.6);transition:top .5s}
+.panel.wide{width:340px;right:12px;max-height:calc(100% - 24px)}
+.panel:not(.wide){left:8px;right:8px;bottom:8px;max-height:54%}
+.panel .x{position:absolute;top:8px;right:10px;border:0;background:none;font-size:22px;line-height:1;color:var(--paper-dim)}
+.panel .kind{margin:0;font:10px var(--f-mono);letter-spacing:.14em;color:var(--paper-dim)}
+.panel h3{margin:0 0 4px;font:900 22px/1.15 var(--f-disp)}
+.panel .desc{margin:0 0 8px;font-size:13px;color:#3d3727}
+.daily{margin:6px 0;padding:6px 8px;border:1px dashed var(--paper-dim);font:12px var(--f-mono)}
+.daily b{margin-right:8px;color:var(--blood)}
+.gonet{color:var(--blood);font-weight:700;margin:6px 0}
+.sec{margin-top:10px}
+.sec h5,.hand h5{margin:0 0 4px;font:10px var(--f-mono);letter-spacing:.16em;text-transform:uppercase}
+.sec h5{color:var(--paper-dim)}
+.crow{display:flex;gap:10px;align-items:center;padding:5px 6px;margin:0 -6px;border-radius:3px;transition:background .2s}
+.crow>div{display:grid;min-width:0;line-height:1.3}
+.crow b{font-size:13px}.crow small{font:11px var(--f-mono);color:var(--paper-dim)}
+.crow .res{font-size:11.5px;color:#4a432f}
+.crow.hp{background:rgba(226,166,59,.35)}
+.crow.hr{background:rgba(204,70,48,.25);animation:pulse 1s infinite}
+.act{padding:10px 0 12px;border-top:1px dashed var(--paper-dim)}
+.act header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 8px}
+.act h4{margin:0;font:900 16px var(--f-disp)}
+.tag{display:inline-block;margin-left:4px;padding:0 6px;border:1px solid var(--paper-dim);border-radius:2px;font:10.5px/1.6 var(--f-mono);color:#4a432f}
+.tag.ph{border-color:var(--blood);color:var(--blood)}
+.act .d{margin:2px 0 6px;font-size:12.5px;color:#3d3727}
+.links{display:flex;flex-wrap:wrap;gap:4px 12px;margin-bottom:6px}
+.lk{display:inline-flex;align-items:center;gap:5px;font-size:12px}
+.lk em{font-style:normal}.lk small{font:10.5px var(--f-mono);color:var(--paper-dim)}
+.slot{min-height:60px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px;border:1.5px dashed var(--paper-dim);border-radius:3px;transition:background .15s}
+.slot.ready{border-color:var(--lamp);background:rgba(226,166,59,.15)}
+.slot.over{background:rgba(226,166,59,.4);border-color:var(--paper-ink);border-style:solid}
+.slot.locked{opacity:.6;background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(0,0,0,.08) 6px 12px)}
+.slot .hint{font-size:12px;color:var(--paper-dim)}
+.chip{border:1px solid var(--paper-ink);background:var(--paper-2);color:var(--paper-ink);border-radius:2px;padding:6px 8px;font:700 12px var(--f-disp);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.chip.time{background:var(--paper-ink);color:var(--paper)}
+.chip:hover{text-decoration:line-through}
+.burn{margin:6px 0}
+.bt{border:1px solid var(--paper-dim);background:none;border-radius:2px;padding:3px 9px;font-size:12px;color:#3d3727}
+.bt.on{background:var(--blood);border-color:var(--blood);color:#fff}
+.bt:disabled{opacity:.4;cursor:default}
+.prob{display:flex;height:20px;border-radius:2px;overflow:hidden;border:1px solid var(--paper-ink)}
+.prob i{display:grid;place-items:center;font:700 11px var(--f-mono);font-style:normal;color:#fff;transition:width .35s;overflow:hidden;white-space:nowrap}
+.prob .ps{background:#3f8b7f}.prob .pn{background:var(--lamp);color:#17130a}.prob .pf{background:var(--blood)}
+.prob.pv{outline:2px solid var(--lamp);outline-offset:2px}
+.pl{margin:3px 0 4px;font:11px var(--f-mono);color:#4a432f}
+.eff{list-style:none;margin:0;padding:0;display:grid;gap:1px;font-size:12px}
+.eff li{display:flex;gap:8px}
+.eff b{flex:none;width:34px;font:700 11px var(--f-mono)}
+.eff .s b{color:#2f7367}.eff .n b{color:#a36f10}.eff .f b{color:var(--blood)}
+
+/* hand */
+.hand{display:flex;gap:20px;overflow-x:auto;padding:4px 2px 2px;align-items:flex-start}
+.grp{flex:none;display:grid;gap:5px}
+.hand h5{color:var(--dim)}.hand h5 small{color:var(--lamp)}
+.cards{display:flex;gap:8px;min-height:100px}
+.none{font-size:12px;color:var(--dim);align-self:center}
+.card{position:relative;flex:none;width:76px;height:100px;padding:6px 7px;background:var(--paper);color:var(--paper-ink);border-radius:3px;display:grid;grid-template-rows:auto 1fr auto;cursor:grab;user-select:none;touch-action:pan-x;box-shadow:0 5px 12px rgba(0,0,0,.5);border-top:5px solid var(--steel);transition:transform .15s}
+.card:hover{transform:translateY(-4px) rotate(-1deg)}
+.card.armed{outline:2px solid var(--lamp);outline-offset:2px;transform:translateY(-6px)}
+.card.lifted{opacity:.3}
+.card .k{font:9px var(--f-mono);letter-spacing:.14em;color:var(--paper-dim)}
+.card .t{font:900 13px/1.25 var(--f-disp);align-self:center}
+.card .b{font:9.5px var(--f-mono);color:#4a432f}
+.card.time{border-top-color:var(--lamp)}.card.time.ph1{border-top-color:#cc6a2e}.card.time.ph2{border-top-color:#4a6fa5}
+.card.time svg{justify-self:end;margin-top:-14px}
+.card.k-关系{border-top-color:var(--teal)}.card.k-线索{border-top-color:var(--lamp)}.card.k-物品{border-top-color:var(--steel)}
+.ghost{position:fixed;z-index:60;pointer-events:none;transform:translate(-50%,-60%) rotate(5deg) scale(1.08);box-shadow:0 18px 30px rgba(0,0,0,.6)}
+
+/* report */
+.veil{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.66);display:grid;place-items:center;padding:16px}
+.sheet{width:min(560px,100%);max-height:100%;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:18px 20px}
+.sheet h3{margin:0 0 10px;font:900 20px var(--f-disp)}
+.re{padding:10px 0;border-top:1px solid var(--line);animation:rise .45s both;animation-delay:var(--d)}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.rh{display:flex;justify-content:space-between;align-items:baseline}
+.rh b{font:900 15px var(--f-disp)}
+.rt{font:700 11px var(--f-mono);padding:1px 8px;border-radius:2px;color:#fff}
+.re.s .rt{background:#3f8b7f}.re.n .rt{background:var(--lamp);color:#17130a}.re.f .rt{background:var(--blood)}
+.story{margin:4px 0;font:15px/1.6 var(--f-disp);color:var(--paper)}
+.ef{margin:0;font:11.5px var(--f-mono);color:var(--dim)}
+.nt{margin:3px 0 0;font-size:12.5px}
+.nt.new{color:var(--lamp)}.nt.bad,.nt.full{color:#e0715c}.nt.story{font-style:italic;color:var(--paper)}.nt.sys{color:var(--dim)}
+.empty{color:var(--dim)}
+.endbox{margin-top:12px;padding:12px;border:1.5px solid var(--lamp);font:15px/1.7 var(--f-disp)}
+.endbox.lose{border-color:var(--blood)}
+.sheet .go{margin-top:14px;background:var(--lamp);color:#17130a;border:0;border-radius:3px;padding:8px 20px;font-weight:700}
+
+@media (max-width:640px){
+  .brand b{font-size:15px}
+  .settle{padding:7px 12px}
+  .card{width:66px;height:90px}.cards{min-height:90px}
+  .note{max-width:230px}
+  .map.has-panel .goals,.map.has-panel .note{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div id="app">
+  <header class="top">
+    <div class="brand"><small>Rainy Harbor · <span id="date"></span></small><b>林深失踪案</b></div>
+    <div class="phases" id="phases"></div>
+    <div class="stats"><span id="money"></span><span id="stress"></span></div>
+    <button class="settle" id="settle"></button>
+  </header>
+  <main class="map boot" id="map" data-ph="0">
+    <svg class="wsvg" id="wsvg"><g id="world"><g id="decor"></g><g id="edges"></g></g></svg>
+    <svg class="wsvg lsvg" id="linksvg"></svg>
+    <div id="nodes"></div>
+    <nav class="crumbs" id="crumbs"></nav>
+    <aside class="note" id="note">
+      <b>委托:找到林深</b>
+      <ol>
+        <li>点区域,镜头推进去,再点人物或物件</li>
+        <li>把底部的时间卡拖进行动槽,可叠加多张和物品</li>
+        <li>看概率条,点右上角“结算”落子</li>
+      </ol>
+    </aside>
+    <aside class="goals" id="goals"></aside>
+    <aside class="panel" id="panel" hidden></aside>
+    <div class="toast" id="toast" hidden></div>
+  </main>
+  <footer class="hand" id="hand"></footer>
+</div>
+<div class="veil" id="veil" hidden><div class="sheet" id="sheet"></div></div>
+<script>
+(() => {
+'use strict';
+const PH = ['白天','黄昏','深夜'];
+const TAG = {talk:'交涉',force:'施压',sneak:'潜行',bribe:'贿赂',investigate:'调查'};
+const KC = {'区域':'zone','地点':'place','人物':'person','物件':'thing','状态':'state'};
+const RES = {s:'成功',n:'有代价',f:'失败'};
+
+/* ---------- data: everything is a node ---------- */
+const N = [
+ {id:'dock',name:'码头区',kind:'区域',x:930,y:600,desc:'潮湿的木栈道,和比木栈道更潮湿的人。'},
+ {id:'wh',parent:'dock',name:'仓库13号',kind:'地点',x:900,y:450,desc:'林深最后一次被人看见的地方。夜里有人守着。',clocks:['c_alert']},
+ {id:'chen',parent:'wh',name:'老陈',kind:'人物',x:800,y:400,desc:'守了二十年仓库。嘴比锁紧,但爱喝两杯。',clocks:['c_chen','c_sus'],actions:['a_chat','a_press']},
+ {id:'crate',parent:'wh',name:'货箱',kind:'物件',x:990,y:400,desc:'堆在角落的木箱,封条是新的。',clocks:['c_crate'],actions:['a_crate']},
+ {id:'back',parent:'wh',name:'后门',kind:'物件',x:900,y:530,hidden:true,desc:'生锈的铁门,门缝里漏出一线灯。',clocks:['c_back'],actions:['a_back']},
+ {id:'bar',parent:'dock',name:'蓝鹦鹉酒馆',kind:'地点',x:790,y:680,desc:'蓝色的霓虹鹦鹉,从来没亮全过。'},
+ {id:'lian',parent:'bar',name:'小莲',kind:'人物',x:690,y:700,desc:'酒保。手上永远有一块擦不完的抹布。',clocks:['c_lian'],actions:['a_drink','a_bribe']},
+ {id:'s_lian',parent:'bar',name:'小莲的耳目',kind:'状态',x:650,y:630,hidden:true,desc:'她替你在码头放风,谁在打听你,她都听得到。',daily:{clock:'c_sus',delta:-1,text:'小莲在码头替你说了几句好话。'}},
+ {id:'patrol',parent:'dock',name:'夜巡的警车',kind:'状态',x:1010,y:520,desc:'它每晚来一次,从不下车。',daily:{clock:'c_heat',delta:1,text:'警车沿着码头慢慢开了一圈。'}},
+ {id:'old',name:'旧城',kind:'区域',x:320,y:470,desc:'窄巷,骑楼,没有人记得名字的小店。'},
+ {id:'office',parent:'old',name:'你的事务所',kind:'地点',x:220,y:400,desc:'毛玻璃上的字掉了一半。墙上钉满了林深的剪影。',clocks:['c_find'],actions:['a_sort']},
+ {id:'news',parent:'old',name:'晚报编辑部',kind:'地点',x:400,y:360,desc:'打字机昼夜不停,没人在意你是谁。'},
+ {id:'zhou',parent:'news',name:'老周',kind:'人物',x:480,y:290,desc:'报馆资料员。欠你一个人情,也不介意再欠一个。',clocks:['c_news'],actions:['a_paper']},
+ {id:'up',name:'上城',kind:'区域',x:800,y:190,desc:'干净的街道和不干净的钱。'},
+ {id:'police',parent:'up',name:'第九分局',kind:'地点',x:700,y:120,desc:'灯光很亮,问题很多。你的名字已经在某张桌子上了。',clocks:['c_heat'],actions:['a_cop']},
+ {id:'mansion',parent:'up',name:'林家',kind:'地点',x:900,y:130,desc:'铜门铃响得很有礼貌。'},
+ {id:'widow',parent:'mansion',name:'林太太',kind:'人物',x:990,y:190,desc:'林深的妻子。从来不先开口。',clocks:['c_widow'],actions:['a_widow']}
+];
+const C0 = {
+ c_chen:{name:'撬开他的嘴',size:6,v:0,kind:'p',res:'满:老陈松口,后门的钥匙浮出水面',on:[{op:'unlock',id:'back'},{op:'text',t:'老陈压低声音:“后门的钥匙在货箱底下,你没听我说过。”'}]},
+ c_sus:{name:'他起疑了',size:4,v:1,kind:'r',res:'满:他按下警铃。警方追查 +2,他不再见你',on:[{op:'lock',id:'chen'},{op:'adv',id:'c_heat',n:2}]},
+ c_alert:{name:'守夜人察觉',size:4,v:0,kind:'r',res:'满:手电扫过来。压力 +2,警方追查 +1',on:[{op:'stress',n:2},{op:'adv',id:'c_heat',n:1},{op:'text',t:'手电的光扫过货箱,你贴着墙滑出去,膝盖还在发抖。'}]},
+ c_crate:{name:'撬开货箱',size:3,v:0,kind:'p',res:'满:拿到账本残页,案情 +2',on:[{op:'give',id:'i_ledger'},{op:'adv',id:'c_find',n:2},{op:'text',t:'账页上有林深的签名,最后一行被人用墨水涂掉了。'}]},
+ c_back:{name:'摸进后门',size:2,v:0,kind:'p',res:'满:暗格里有林深的笔迹,案情 +2',on:[{op:'adv',id:'c_find',n:2},{op:'text',t:'暗格里是半包受潮的烟,和一张写着船期的纸条。'}]},
+ c_lian:{name:'酒保的口风',size:4,v:0,kind:'p',res:'满:小莲答应替你放风(新节点)',on:[{op:'unlock',id:'s_lian'},{op:'text',t:'小莲擦着杯子说:“码头上有人打听你,我替你听着。”'}]},
+ c_news:{name:'翻出旧报',size:3,v:0,kind:'p',res:'满:拿到旧剪报,案情 +1',on:[{op:'give',id:'i_clip'},{op:'adv',id:'c_find',n:1}]},
+ c_widow:{name:'林太太的信任',size:3,v:0,kind:'p',res:'满:她交出一封信,案情 +2',on:[{op:'adv',id:'c_find',n:2},{op:'text',t:'信封里没有信,只有一把仓库的钥匙。'}]},
+ c_find:{name:'找到林深',size:8,v:0,kind:'p',res:'满:你找到了林深',on:[{op:'win',t:'雨在天亮前停了。你在十三号仓库的最后一格货架后面,找到了活着的林深,和他藏起来的另一本账。城市还是那座城市,但今晚有人要睡不着了。'}]},
+ c_heat:{name:'警方追查',size:8,v:1,kind:'r',res:'满:警笛亮起,你被通缉',on:[{op:'lose',t:'警笛在码头尽头亮起来。你把帽檐压低,却发现所有出口都有人在等。案子,到这儿就算结了。'}]}
+};
+const I = {
+ i_rev:{name:'左轮',k:'物品',for:['force'],b:15,consume:false,desc:'六发子弹,少了两发。'},
+ i_photo:{name:'林深的照片',k:'线索',for:['talk','investigate'],b:12,consume:false,desc:'边角卷了,背面有个地址。'},
+ i_iou:{name:'赌场欠条',k:'关系',for:['bribe','talk'],b:20,consume:true,desc:'有人欠你一个面子。用掉就没了。'},
+ i_favor:{name:'老周的人情',k:'关系',for:['investigate','talk'],b:16,consume:true,desc:'报馆里的人情。用掉就没了。'},
+ i_ledger:{name:'账本残页',k:'线索',for:['investigate'],b:20,consume:false,desc:'被涂掉的最后一行。'},
+ i_clip:{name:'旧剪报',k:'线索',for:['investigate','talk'],b:14,consume:false,desc:'林深失踪前一周的社会版。'}
+};
+const A = {
+ a_chat:{node:'chen',name:'套近乎',tags:['talk'],base:[55,30,15],main:'c_chen',risk:'c_sus',phases:[0,1,2],desc:'递根烟,聊聊潮水和他的腰。',eff:{s:{m:1},n:{m:1,money:-5},f:{r:1}},
+  txt:{s:'他靠着木桩把烟抽完,话比烟长。',n:'他收了你的酒钱,话只肯说一半。',f:'你问得太直。他眯起眼,不再看你。'}},
+ a_press:{node:'chen',name:'施压',tags:['force'],base:[30,30,40],main:'c_chen',risk:'c_sus',phases:[0,1,2],desc:'把话挑明,让他知道不开口的后果。',eff:{s:{m:2},n:{m:1,r:1},f:{r:1,stress:1}},
+  txt:{s:'你把手按在他肩上,他的声音先软了。',n:'他开口了,但手在发抖,眼睛盯着远处的电话亭。',f:'他推开你的手:“我认得你的脸了。”'}},
+ a_crate:{node:'crate',name:'撬开货箱',tags:['sneak','force'],base:[40,35,25],main:'c_crate',risk:'c_alert',phases:[2],desc:'封条是新的,里面的东西不是。',eff:{s:{m:2},n:{m:1,r:1},f:{r:1,stress:1}},
+  txt:{s:'封条下面是旧账页,纸边还带着潮气。',n:'箱盖掀开了,你也踩响了一块松动的木板。',f:'撬棍滑了一下,金属声在仓库里转了三圈。'}},
+ a_back:{node:'back',name:'摸进后门',tags:['sneak'],base:[55,30,15],main:'c_back',risk:'c_alert',phases:[2],desc:'钥匙在手,脚步要轻。',eff:{s:{m:1},n:{m:1,r:1},f:{r:1}},
+  txt:{s:'钥匙转得很轻,门后的黑暗里有墨水味。',n:'门开了,铰链叫了一声。远处有人咳嗽。',f:'锁芯卡住了。你站在雨里,听着自己的心跳。'}},
+ a_drink:{node:'lian',name:'点一杯酒套话',tags:['talk'],base:[50,35,15],main:'c_lian',phases:[1,2],desc:'一杯威士忌的价钱,换一点口风。',eff:{s:{m:1,money:-6},n:{m:1,money:-6},f:{money:-6,stress:1}},
+  txt:{s:'第三杯下去,小莲开始往你这边倾身。',n:'她听着你的故事,顺手多收了两块钱。',f:'一杯酒喝到底,什么也没问出来。'}},
+ a_bribe:{node:'lian',name:'塞钱收买',tags:['bribe'],base:[60,25,15],main:'c_lian',phases:[1,2],desc:'钞票比酒更直接。',eff:{s:{m:2,money:-10},n:{m:1,money:-10},f:{stress:1}},
+  txt:{s:'钞票消失得很干净,她的笑容也是。',n:'她收了钱,笑得很勉强,像在算利息。',f:'她把钱推了回来,又多看了你一眼。'}},
+ a_sort:{node:'office',name:'整理线索',tags:['investigate'],base:[50,35,15],main:'c_find',phases:[0,1,2],desc:'把线索钉在墙上,盯着它们看。',eff:{s:{m:1},n:{m:1,stress:1},f:{stress:1}},
+  txt:{s:'图钉连成一条线,你看见了线的尽头。',n:'线索对上了两条,但你整晚没合眼。',f:'烟灰缸满了,线索还是一团乱麻。'}},
+ a_paper:{node:'zhou',name:'请老周翻旧报',tags:['investigate','talk'],base:[55,30,15],main:'c_news',phases:[0,1],desc:'老周欠你一个人情,也不介意再多一个。',eff:{s:{m:1},n:{m:1,stress:1},f:{stress:1}},
+  txt:{s:'老周翻出一叠发黄的晚报,日期正卡在林深失踪前。',n:'老周帮了忙,顺口说你最近脸色不好。',f:'资料室锁着,老周也不见人影。'}},
+ a_widow:{node:'widow',name:'登门拜访',tags:['talk'],base:[40,35,25],main:'c_widow',phases:[0,1],desc:'带上帽子,放低声音。',eff:{s:{m:1},n:{m:1,stress:1},f:{stress:1}},
+  txt:{s:'她把茶杯放下,说起了那封没寄出的信。',n:'她开口了,但眼睛一直盯着你的帽檐。',f:'管家把你送到门口,门在你身后合上。'}},
+ a_cop:{node:'police',name:'给巡警塞红包',tags:['bribe'],base:[45,35,20],main:'c_heat',phases:[0,1],desc:'一个信封,让这片街区少一双眼睛。',eff:{s:{m:-2,money:-8},n:{m:-1,money:-8},f:{m:1,stress:1}},
+  txt:{s:'红包进了口袋,巡警的目光转向别处。',n:'他收下了,但只肯担保一半。',f:'他把信封推了回来,并记下了你的车牌。'}}
+};
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+const byId = Object.fromEntries(N.map(n => [n.id,n]));
+const map=$('#map'), nodesEl=$('#nodes'), world=$('#world'), edgesEl=$('#edges'), panel=$('#panel'), linksvg=$('#linksvg'), hand=$('#hand'), toastEl=$('#toast'), veil=$('#veil'), sheet=$('#sheet');
+let C, S, cam={s:1,tx:0,ty:0,W:0,H:0,ref:null,wide:true};
+
+function init(){
+  C = JSON.parse(JSON.stringify(C0));
+  S = {day:1,phase:0,money:42,stress:1,sel:null,unlocked:new Set(),locked:new Set(),hand:['i_rev','i_photo','i_iou','i_favor'],time:[],tc:0,slots:{},burn:{},armed:null,ended:null};
+  dealTime();
+}
+function dealTime(){ S.time=[0,1,2].map(()=>({id:'t'+(S.tc++),ph:S.phase})); }
+const avail = n => !n.hidden || S.unlocked.has(n.id);
+const kids = id => N.filter(n => n.parent===id && avail(n));
+const path = id => { const p=[]; let n=byId[id]; while(n){ p.unshift(n.id); n=n.parent?byId[n.parent]:null; } return p; };
+const descendants = id => { const o=[]; kids(id).forEach(k => { o.push(k,...descendants(k.id)); }); return o; };
+const placedSet = () => { const s=new Set(); for(const k in S.slots){ S.slots[k].time.forEach(x=>s.add(x)); S.slots[k].items.forEach(x=>s.add(x)); } return s; };
+const emptySlot = () => ({time:[],items:[]});
+const sign = n => (n>0?'+':'−')+Math.abs(n);
+
+/* ---------- probability ---------- */
+function calc(a, sl, burn){
+  let P = 10*Math.max(0, sl.time.length-1);
+  sl.items.forEach(id => P += I[id].b);
+  if(burn) P += 15;
+  P -= 8*Math.max(0, S.stress-3);
+  let s = clamp(a.base[0]+0.6*P, 5, 92);
+  let f = clamp(a.base[2]-0.8*P, 3, 90);
+  if(s+f>100) f = 100-s;
+  s = Math.round(s); f = Math.round(f);
+  return {s, n:100-s-f, f};
+}
+function effLine(a,k){
+  const e=a.eff[k]||{}, out=[];
+  if(e.m) out.push(C[a.main].name+' '+sign(e.m));
+  if(e.r && a.risk) out.push(C[a.risk].name+' '+sign(e.r));
+  if(e.stress) out.push('压力 '+sign(e.stress));
+  if(e.money) out.push('钱 '+sign(e.money));
+  return out.join(' · ') || '没有变化';
+}
+
+/* ---------- clock svg ---------- */
+function clk(c, px){
+  const r=px/2-1.5, cx=px/2, cy=px/2, n=c.size;
+  let s=`<svg class="clk ${c.kind}" width="${px}" height="${px}" viewBox="0 0 ${px} ${px}" aria-hidden="true"><circle class="bg" cx="${cx}" cy="${cy}" r="${r}"/>`;
+  const pt=(i,rr)=>{ const a=(-90+360*i/n)*Math.PI/180; return [cx+rr*Math.cos(a), cy+rr*Math.sin(a)]; };
+  for(let i=0;i<n;i++){
+    const [x0,y0]=pt(i,r-1), [x1,y1]=pt(i+1,r-1);
+    s+=`<path class="w${i<c.v?' f':''}" d="M${cx} ${cy}L${x0.toFixed(2)} ${y0.toFixed(2)}A${r-1} ${r-1} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}Z"/>`;
+  }
+  for(let i=0;i<n;i++){ const [x,y]=pt(i,r); s+=`<line class="sep" x1="${cx}" y1="${cy}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}"/>`; }
+  return s+'</svg>';
+}
+
+/* ---------- static map decoration ---------- */
+function decor(){
+  let seed=7; const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647; };
+  const water=(x,y)=> x>=1080 ? y>540-(x-1080)*1.333 : y>540+(1080-x)*0.684;
+  let h='<path d="M700 800L1200 800L1200 380L1080 540C1030 610 900 690 700 800Z" fill="var(--water)" stroke="#16242e" stroke-width="2"/>';
+  for(let gx=0;gx<20;gx++) for(let gy=0;gy<14;gy++){
+    const x=gx*62+10, y=gy*60+10;
+    if(water(x+56,y+50)||water(x,y+50)) continue;
+    const lit=rnd()<0.07;
+    h+=`<rect x="${x}" y="${y}" width="${48+Math.floor(rnd()*8)}" height="${40+Math.floor(rnd()*8)}" fill="${lit?'#2a2418':'var(--blk)'}" stroke="#1b1f27"/>`;
+  }
+  const o=byId.old,u=byId.up,d=byId.dock;
+  const road=(p)=>`<path d="${p}" fill="none" stroke="var(--road)" stroke-width="14" stroke-linecap="round"/><path d="${p}" fill="none" stroke="#3a3326" stroke-width="1" stroke-dasharray="8 8" vector-effect="non-scaling-stroke"/>`;
+  h+=road(`M${o.x} ${o.y}Q${(o.x+u.x)/2-40} ${(o.y+u.y)/2+60} ${u.x} ${u.y}`);
+  h+=road(`M${o.x} ${o.y}Q${(o.x+d.x)/2} ${(o.y+d.y)/2+90} ${d.x} ${d.y}`);
+  h+=road(`M${u.x} ${u.y}Q${u.x+150} ${(u.y+d.y)/2} ${d.x} ${d.y}`);
+  [[1010,640],[960,690],[880,740]].forEach(([x,y])=>{ h+=`<path d="M${x-30} ${y-30}L${x+20} ${y+20}" stroke="#2b2418" stroke-width="6" vector-effect="non-scaling-stroke"/>`; });
+  h+='<text x="1030" y="740" fill="#1f2f3b" font-family="var(--f-disp)" font-size="30" letter-spacing="14" transform="rotate(-38 1030 740)">港湾</text>';
+  $('#decor').innerHTML=h;
+}
+
+/* ---------- camera / layout ---------- */
+function refOf(){ if(!S.sel) return null; return kids(S.sel).length ? S.sel : (byId[S.sel].parent||null); }
+function layout(){
+  const W=map.clientWidth, H=map.clientHeight, wide=W>=820;
+  let aw=W, ah=H; if(S.sel){ if(wide) aw=W-372; else ah=Math.round(H*.42); }
+  const ref=refOf();
+  const set = ref ? [byId[ref],...kids(ref)] : N.filter(n=>!n.parent);
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  set.forEach(n=>{ x0=Math.min(x0,n.x); x1=Math.max(x1,n.x); y0=Math.min(y0,n.y); y1=Math.max(y1,n.y); });
+  const px=wide?120:70, py=wide?90:60;
+  const s=clamp(Math.min((aw-2*px)/Math.max(x1-x0,60),(ah-2*py)/Math.max(y1-y0,60)),.6,2);
+  cam={s,tx:aw/2-(x0+x1)/2*s,ty:ah/2-(y0+y1)/2*s,W,H,ref,wide};
+  world.style.transform=`translate(${cam.tx}px,${cam.ty}px) scale(${s})`;
+}
+
+/* ---------- nodes ---------- */
+const elems={};
+N.forEach(n=>{
+  const d=document.createElement('div');
+  d.className='node'; d.dataset.id=n.id; d.tabIndex=0; d.setAttribute('role','button');
+  d.style.setProperty('--rot', (((n.x*7+n.y*3)%5)-2)*0.7+'deg');
+  nodesEl.appendChild(d); elems[n.id]=d;
+});
+function bubble(n){
+  if(!N.some(x=>x.parent===n.id)) return '';
+  let best=null;
+  [n,...descendants(n.id)].forEach(x=>(x.clocks||[]).forEach(id=>{ const c=C[id]; if(c.kind==='r'&&c.v>0&&!c.done){ const q=c.v/c.size; if(!best||q>best.q) best={q,c}; } }));
+  if(!best||best.q<0.25) return '';
+  return `<span class="bub ${best.q>=.75?'hot':''}" title="${best.c.name}">${best.c.v}/${best.c.size}</span>`;
+}
+function nodeInner(n){
+  const pips=(n.clocks||[]).map(id=>clk(C[id],18)).join('');
+  const av=n.kind==='人物'?`<span class="av">${n.name[0]}</span>`:'';
+  const dl=n.daily?`<span class="dl">每夜 · ${C[n.daily.clock].name} ${sign(n.daily.delta)}</span>`:'';
+  return `<div class="nc"><span class="k">${n.kind}</span><span class="row">${av}<span class="nm">${n.name}</span></span>${pips?`<span class="pips">${pips}</span>`:''}${dl}</div>${bubble(n)}`;
+}
+function renderNodes(){
+  const ref=cam.ref, rp=ref?path(ref):[]; let edges='';
+  N.forEach(n=>{
+    const d=elems[n.id];
+    const ok=avail(n)&&(!n.parent||rp.includes(n.parent));
+    const role=(n.parent||null)===ref?'full':rp.includes(n.id)?'path':'dim';
+    d.className=`node t-${KC[n.kind]} ${ok?role:'off'}${n.id===S.sel?' sel':''}${S.locked.has(n.id)?' gone':''}`;
+    d.style.left=(n.x*cam.s+cam.tx)+'px'; d.style.top=(n.y*cam.s+cam.ty)+'px';
+    d.tabIndex=ok?0:-1; d.innerHTML=nodeInner(n);
+    if(ok&&n.parent){ const p=byId[n.parent]; edges+=`<line class="edge ${role}" x1="${p.x}" y1="${p.y}" x2="${n.x}" y2="${n.y}"/>`; }
+  });
+  edgesEl.innerHTML=edges;
+}
+
+/* ---------- dossier panel ---------- */
+const crow = id => { const c=C[id]; return `<div class="crow" data-c="${id}">${clk(c,38)}<div><b>${c.name}</b><small>${c.v}/${c.size}${c.done?' · 已完成':''}</small><span class="res">${c.res}</span></div></div>`; };
+const lk = (c,k) => `<span class="lk">${clk(c,16)}<em>${k}${c.name}</em><small>${c.v}/${c.size}</small></span>`;
+const chip = (id,type) => `<button class="chip ${type}" data-rm="${id}" title="点击退回手牌">${type==='time'?PH[S.time.find(t=>t.id===id).ph]+'·时间':I[id].name}</button>`;
+function probInner(p){ return `<i class="ps" style="width:${p.s}%">${p.s>=12?p.s:''}</i><i class="pn" style="width:${p.n}%">${p.n>=12?p.n:''}</i><i class="pf" style="width:${p.f}%">${p.f>=12?p.f:''}</i>`; }
+const probLegend = p => `成功 ${p.s}% · 代价 ${p.n}% · 失败 ${p.f}%`;
+function actHTML(aid){
+  const a=A[aid], sl=S.slots[aid]||emptySlot(), ok=a.phases.includes(S.phase), p=calc(a,sl,!!S.burn[aid]);
+  const chips=[...sl.time.map(id=>chip(id,'time')),...sl.items.map(id=>chip(id,'item'))].join('');
+  const ph=a.phases.length<3?`<span class="tag ph">仅${a.phases.map(i=>PH[i]).join('/')}</span>`:'';
+  const hint=ok?'拖入时间卡(至少 1 张),可叠加物品':`现在是${PH[S.phase]},这件事做不了`;
+  return `<section class="act" data-act="${aid}" data-m="${a.main}" data-r="${a.risk||''}">
+   <header><h4>${a.name}</h4><span>${a.tags.map(t=>`<span class="tag">${TAG[t]}</span>`).join('')}${ph}</span></header>
+   <p class="d">${a.desc}</p>
+   <div class="links">${lk(C[a.main],'推进 ')}${a.risk?lk(C[a.risk],'风险 '):''}</div>
+   <div class="slot ${ok?'':'locked'}${S.armed&&ok?' ready':''}" data-a="${aid}">${chips||`<span class="hint">${hint}</span>`}</div>
+   <div class="burn"><button class="bt${S.burn[aid]?' on':''}" data-burn="${aid}" ${ok?'':'disabled'}>燃烧压力:成功 +15%,结算后压力 +1</button></div>
+   <div class="prob" data-a="${aid}">${probInner(p)}</div><div class="pl" data-a="${aid}">${probLegend(p)}</div>
+   <ul class="eff"><li class="s"><b>成功</b>${effLine(a,'s')}</li><li class="n"><b>代价</b>${effLine(a,'n')}</li><li class="f"><b>失败</b>${effLine(a,'f')}</li></ul>
+  </section>`;
+}
+function panelHTML(n){
+  const gone=S.locked.has(n.id), cl=n.clocks||[], ac=gone?[]:(n.actions||[]);
+  let h=`<button class="x" aria-label="返回上一级">×</button><p class="kind">${n.kind}${n.parent?' · '+byId[n.parent].name:''}</p><h3>${n.name}</h3><p class="desc">${n.desc}</p>`;
+  if(n.daily) h+=`<p class="daily"><b>每夜自动</b>${C[n.daily.clock].name} ${sign(n.daily.delta)}</p>`;
+  if(gone) h+='<p class="gonet">他已经躲了起来,这条线暂时断了。</p>';
+  if(cl.length) h+=`<div class="sec"><h5>时钟</h5>${cl.map(crow).join('')}</div>`;
+  if(ac.length) h+=`<div class="sec"><h5>行动</h5>${ac.map(actHTML).join('')}</div>`;
+  if(!cl.length&&!ac.length&&!n.daily){ const k=kids(n.id); h+=`<p class="desc">${k.length?'这里有 '+k.length+' 处可以查看。':'这里暂时没有可做的事。'}</p>`; }
+  return h;
+}
+function renderPanel(){
+  map.classList.toggle('has-panel',!!S.sel);
+  linksvg.innerHTML='';
+  if(!S.sel){ panel.hidden=true; return; }
+  const n=byId[S.sel], keep=panel.scrollTop;
+  panel.hidden=false; panel.classList.toggle('wide',cam.wide);
+  panel.innerHTML=panelHTML(n); panel.scrollTop=keep;
+  if(cam.wide){
+    const ph=panel.offsetHeight, sx=n.x*cam.s+cam.tx, sy=n.y*cam.s+cam.ty;
+    const top=clamp(sy-ph/2,12,Math.max(12,cam.H-ph-12));
+    panel.style.top=top+'px'; panel.style.bottom='auto';
+    const ex=cam.W-12-340, ey=clamp(sy,top+24,top+ph-24);
+    linksvg.innerHTML=`<path d="M${sx} ${sy}C${sx+80} ${sy} ${ex-80} ${ey} ${ex} ${ey}"/><circle cx="${sx}" cy="${sy}" r="3.5"/>`;
+  } else { panel.style.top=''; panel.style.bottom=''; }
+}
+
+/* ---------- top, hand, crumbs, goals ---------- */
+function renderTop(){
+  $('#date').textContent=`1947年3月${11+S.day}日`;
+  $('#phases').innerHTML=PH.map((p,i)=>`<span class="${i<S.phase?'past':i===S.phase?'on':''}">${p}</span>`).join('');
+  $('#money').textContent='$'+S.money;
+  $('#stress').innerHTML=`压力<span class="sp">${[0,1,2,3,4,5].map(i=>`<i class="${i<S.stress?(S.stress>=4?'hi':'on'):''}"></i>`).join('')}</span>`+(S.stress>3?` <em class="warn">成功率 −${8*(S.stress-3)}%</em>`:'');
+  const n=Object.values(S.slots).filter(s=>s.time.length).length;
+  const b=$('#settle'); b.textContent=`结算${PH[S.phase]} · ${n} 项行动`; b.disabled=!!S.ended;
+  map.dataset.ph=S.phase;
+}
+const face = ph => { const a=[60,150,0][ph]*Math.PI/180; return `<svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="11" fill="none" stroke="#1b1810" stroke-width="1.5"/><line x1="13" y1="13" x2="${(13+8*Math.sin(a)).toFixed(1)}" y2="${(13-8*Math.cos(a)).toFixed(1)}" stroke="#1b1810" stroke-width="2"/><line x1="13" y1="13" x2="13" y2="5" stroke="#1b1810" stroke-width="1"/></svg>`; };
+function cardHTML(id,type){
+  const ar=S.armed===id?' armed':'';
+  if(type==='time'){ const t=S.time.find(x=>x.id===id); return `<div class="card time ph${t.ph}${ar}" data-id="${id}" data-type="time"><span class="k">时间</span><span class="t">${PH[t.ph]}</span>${face(t.ph)}</div>`; }
+  const it=I[id];
+  return `<div class="card item k-${it.k}${ar}" data-id="${id}" data-type="item" title="${it.desc}"><span class="k">${it.k}</span><span class="t">${it.name}</span><span class="b">${it.for.map(t=>TAG[t]).join('·')} +${it.b}</span></div>`;
+}
+function renderHand(){
+  const pl=placedSet(), times=S.time.filter(t=>!pl.has(t.id)), items=S.hand.filter(i=>!pl.has(i));
+  hand.innerHTML=`<div class="grp"><h5>时间 · ${PH[S.phase]} <small>${times.length}/3</small></h5><div class="cards">${times.map(t=>cardHTML(t.id,'time')).join('')||'<span class="none">本时段的时间已全部投入</span>'}</div></div>
+  <div class="grp"><h5>物品 · 关系 · 线索</h5><div class="cards">${items.map(i=>cardHTML(i,'item')).join('')||'<span class="none">手里没有可用的东西</span>'}</div></div>`;
+}
+function renderCrumbs(){
+  const p=S.sel?path(S.sel):[];
+  $('#crumbs').innerHTML=`<button data-go="">城市</button>`+p.map(id=>`<span>›</span><button data-go="${id}">${byId[id].name}</button>`).join('');
+  $('#note').hidden=!!S.sel;
+}
+function renderGoals(){
+  $('#goals').innerHTML=[['c_find','office','案情'],['c_heat','police','追查']].map(([c,n,l])=>{ const k=C[c]; return `<button class="goal" data-go="${n}" title="前往${byId[n].name}">${clk(k,28)}<span><small>${l}</small><b>${k.name}</b><em>${k.v}/${k.size}</em></span></button>`; }).join('');
+}
+function render(){ layout(); renderNodes(); renderPanel(); renderTop(); renderHand(); renderCrumbs(); renderGoals(); }
+
+/* ---------- interaction ---------- */
+function toast(m){ toastEl.textContent=m; toastEl.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>{ toastEl.hidden=true; },2400); }
+function back(){ if(!S.sel) return; S.sel=byId[S.sel].parent||null; render(); }
+function select(id){ if(S.sel===id) return; S.sel=id; render(); }
+function cleanup(aid){ const s=S.slots[aid]; if(s&&!s.time.length&&!s.items.length) delete S.slots[aid]; }
+function place(aid,id,type){
+  if(S.ended) return false;
+  const a=A[aid];
+  if(!a.phases.includes(S.phase)){ toast(`现在是${PH[S.phase]},这件事只能在${a.phases.map(i=>PH[i]).join('或')}做。`); return false; }
+  const sl=S.slots[aid]||(S.slots[aid]=emptySlot());
+  if(type==='time'){
+    if(sl.time.length>=3){ toast('一件事最多投入三张时间卡。'); cleanup(aid); return false; }
+    sl.time.push(id);
+  } else {
+    const it=I[id];
+    if(!it.for.some(t=>a.tags.includes(t))){ toast(`「${it.name}」在这件事上派不上用场。`); cleanup(aid); return false; }
+    if(sl.items.length>=2){ toast('最多叠加两件物品。'); cleanup(aid); return false; }
+    sl.items.push(id);
+  }
+  S.armed=null; render(); return true;
+}
+function removeCard(id){
+  for(const k in S.slots){ const s=S.slots[k]; s.time=s.time.filter(x=>x!==id); s.items=s.items.filter(x=>x!==id); cleanup(k); }
+  render();
+}
+map.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]'); if(g){ S.sel=g.dataset.go||null; render(); return; }
+  const nd=e.target.closest('.node'); if(nd&&!nd.classList.contains('off')){ select(nd.dataset.id); return; }
+  if(e.target.closest('svg')) back();
+});
+nodesEl.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ const nd=e.target.closest('.node'); if(nd){ e.preventDefault(); select(nd.dataset.id); } } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&veil.hidden) back(); });
+panel.addEventListener('click',e=>{
+  const rm=e.target.closest('[data-rm]'); if(rm){ removeCard(rm.dataset.rm); return; }
+  const bt=e.target.closest('[data-burn]'); if(bt){ S.burn[bt.dataset.burn]=!S.burn[bt.dataset.burn]; render(); return; }
+  if(e.target.closest('.x')){ back(); return; }
+  const sl=e.target.closest('.slot');
+  if(sl&&S.armed){ const id=S.armed; if(!place(sl.dataset.a,id,id.startsWith('i_')?'item':'time')) render(); }
+});
+function hl(a){
+  panel.querySelectorAll('.crow').forEach(r=>r.classList.remove('hp','hr'));
+  if(!a) return;
+  const m=panel.querySelector(`.crow[data-c="${a.dataset.m}"]`); if(m) m.classList.add('hp');
+  if(a.dataset.r){ const r=panel.querySelector(`.crow[data-c="${a.dataset.r}"]`); if(r) r.classList.add('hr'); }
+}
+panel.addEventListener('mouseover',e=>hl(e.target.closest('.act')));
+panel.addEventListener('mouseleave',()=>hl(null));
+
+/* drag cards onto action slots */
+let drag=null;
+function paintProb(aid,p,pv){
+  const b=panel.querySelector(`.prob[data-a="${aid}"]`), l=panel.querySelector(`.pl[data-a="${aid}"]`);
+  if(!b) return; b.innerHTML=probInner(p); b.classList.toggle('pv',pv); l.textContent=(pv?'放入后 · ':'')+probLegend(p);
+}
+const repaint = aid => paintProb(aid,calc(A[aid],S.slots[aid]||emptySlot(),!!S.burn[aid]),false);
+function hover(el){
+  const s=el&&el.closest?el.closest('.slot'):null, aid=s?s.dataset.a:null;
+  if(aid===drag.over) return;
+  if(drag.over){ const o=panel.querySelector(`.slot[data-a="${drag.over}"]`); if(o) o.classList.remove('over'); repaint(drag.over); }
+  drag.over=aid;
+  if(aid){
+    s.classList.add('over');
+    const sl=S.slots[aid]||emptySlot(), h={time:[...sl.time],items:[...sl.items]};
+    (drag.type==='time'?h.time:h.items).push(drag.id);
+    paintProb(aid,calc(A[aid],h,!!S.burn[aid]),true);
+  }
+}
+hand.addEventListener('pointerdown',e=>{
+  const el=e.target.closest('.card'); if(!el||S.ended) return;
+  drag={id:el.dataset.id,type:el.dataset.type,el,x:e.clientX,y:e.clientY,moved:false,ghost:null,over:null,pid:e.pointerId};
+});
+window.addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.pid) return;
+  if(!drag.moved){
+    if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<7) return;
+    drag.moved=true; const g=drag.el.cloneNode(true); g.classList.add('ghost'); g.classList.remove('armed'); document.body.appendChild(g); drag.ghost=g; drag.el.classList.add('lifted');
+  }
+  drag.ghost.style.left=e.clientX+'px'; drag.ghost.style.top=e.clientY+'px';
+  hover(document.elementFromPoint(e.clientX,e.clientY));
+});
+function endDrag(e,drop){
+  if(!drag||e.pointerId!==drag.pid) return;
+  const d=drag; drag=null;
+  if(d.ghost) d.ghost.remove();
+  d.el.classList.remove('lifted');
+  if(!d.moved){ if(drop){ S.armed=S.armed===d.id?null:d.id; render(); } return; }
+  const s=drop?document.elementFromPoint(e.clientX,e.clientY):null, sl=s&&s.closest?s.closest('.slot'):null;
+  if(!(sl&&place(sl.dataset.a,d.id,d.type))) render();
+}
+window.addEventListener('pointerup',e=>endDrag(e,true));
+window.addEventListener('pointercancel',e=>endDrag(e,false));
+
+/* ---------- settle a phase ---------- */
+function adv(id,n,notes){
+  const c=C[id]; if(c.done) return;
+  c.v=clamp(c.v+n,0,c.size);
+  if(n>0&&c.v>=c.size){ c.done=true; notes.push({k:'full',t:`「${c.name}」满了。`}); c.on.forEach(op=>runOp(op,notes)); }
+}
+function runOp(op,notes){
+  switch(op.op){
+    case 'text': notes.push({k:'story',t:op.t}); break;
+    case 'unlock': S.unlocked.add(op.id); notes.push({k:'new',t:`出现了新的节点:${byId[op.id].name}`}); break;
+    case 'lock': S.locked.add(op.id); notes.push({k:'bad',t:`${byId[op.id].name}不会再见你了。`}); break;
+    case 'give': if(!S.hand.includes(op.id)&&!placedSet().has(op.id)){ S.hand.push(op.id); notes.push({k:'new',t:`获得卡片:${I[op.id].name}`}); } break;
+    case 'stress': S.stress=clamp(S.stress+op.n,0,6); break;
+    case 'adv': adv(op.id,op.n,notes); break;
+    case 'win': S.ended={win:true,t:op.t}; break;
+    case 'lose': S.ended={win:false,t:op.t}; break;
+  }
+}
+function settle(){
+  if(S.ended) return;
+  const label=`第 ${S.day} 天 · ${PH[S.phase]}`, entries=[], used=[];
+  Object.keys(S.slots).forEach(aid=>{
+    const sl=S.slots[aid]; if(!sl.time.length) return;
+    const a=A[aid], p=calc(a,sl,!!S.burn[aid]), r=Math.random()*100, res=r<p.s?'s':r<p.s+p.n?'n':'f';
+    const notes=[], e=a.eff[res]||{};
+    if(e.m) adv(a.main,e.m,notes);
+    if(e.r&&a.risk) adv(a.risk,e.r,notes);
+    if(e.stress) S.stress=clamp(S.stress+e.stress,0,6);
+    if(e.money) S.money=Math.max(0,S.money+e.money);
+    let eff=effLine(a,res);
+    if(S.burn[aid]){ S.stress=clamp(S.stress+1,0,6); eff+=' · 压力 +1(燃烧)'; }
+    sl.items.forEach(id=>{ if(I[id].consume) used.push(id); });
+    entries.push({name:a.name,res,text:a.txt[res],eff,notes});
+  });
+  S.hand=S.hand.filter(i=>!used.includes(i));
+  S.slots={}; S.burn={}; S.armed=null;
+  const sys=[];
+  S.phase++;
+  if(S.phase>2){
+    N.forEach(n=>{ if(n.daily&&avail(n)&&!S.locked.has(n.id)){ sys.push({k:'sys',t:`${n.daily.text}(${C[n.daily.clock].name} ${sign(n.daily.delta)})`}); adv(n.daily.clock,n.daily.delta,sys); } });
+    S.day++; S.phase=0;
+    if(S.stress>0) sys.push({k:'sys',t:'天亮之前你睡了三个小时。压力 −1。'});
+    S.stress=Math.max(0,S.stress-1);
+  }
+  if(!S.ended&&S.stress>=6) S.ended={win:false,t:'你在雨里站了很久,点了一支烟,没有再抬头。有些案子,是先把人熬干的。'};
+  dealTime();
+  render();
+  showReport(label,entries,sys);
+}
+function showReport(label,entries,sys){
+  let h=`<h3>${label}</h3>`;
+  if(!entries.length) h+='<p class="empty">这段时间什么也没做。雨还在下。</p>';
+  entries.forEach((e,i)=>{ h+=`<article class="re ${e.res}" style="--d:${i*120}ms"><div class="rh"><b>${e.name}</b><span class="rt">${RES[e.res]}</span></div><p class="story">${e.text}</p><p class="ef">${e.eff}</p>${e.notes.map(n=>`<p class="nt ${n.k}">${n.t}</p>`).join('')}</article>`; });
+  if(sys.length) h+=`<article class="re" style="--d:${entries.length*120}ms"><div class="rh"><b>夜里</b></div>${sys.map(n=>`<p class="nt ${n.k}">${n.t}</p>`).join('')}</article>`;
+  if(S.ended) h+=`<div class="endbox ${S.ended.win?'':'lose'}">${S.ended.t}</div><button class="go" id="again">重新开始</button>`;
+  else h+='<button class="go" id="again">继续</button>';
+  sheet.innerHTML=h; veil.hidden=false;
+  $('#again').focus();
+}
+veil.addEventListener('click',e=>{
+  if(!e.target.closest('#again')) return;
+  veil.hidden=true;
+  if(S.ended){ init(); }
+  render();
+});
+$('#settle').addEventListener('click',settle);
+
+/* ---------- boot ---------- */
+decor(); init(); render();
+new ResizeObserver(()=>{ render(); }).observe(map);
+requestAnimationFrame(()=>requestAnimationFrame(()=>map.classList.remove('boot')));
+})();
+</script>
+
+</body></html>
